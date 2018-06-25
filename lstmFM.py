@@ -2,6 +2,7 @@ import numpy
 import matplotlib.pyplot as plt
 import pandas
 import math
+from sklearn import metrics
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -85,7 +86,6 @@ YTrain = train[:, 41]
 #YTrain = m2Binary(YTrain)
 
 
-print XTrain[0:5]
 
 test = test.values
 XTest = test[:, 0:41]
@@ -94,9 +94,6 @@ XTest = XTest.astype('float32')
 YTest = test[:, 41]
 #YTest = m2Binary(YTest)
 
-for el in YTest:
-    if el != 'normal' and el!= 'Probe' and el!= 'Dos' and el != 'U2R' and el!= 'R2L':
-        print '----------------', el , '-----------------'
 
 #reshaping inputs as expected by lstm with time step size = 100
 #XTrain = numpy.reshape(XTrain, (len(XTrain), 100, len(XTrain[0])))
@@ -112,20 +109,17 @@ encoder.fit(YTrain)
 encoded_YTrain = encoder.transform(YTrain)
 
 # convert integers to dummy variables (i.e. one hot encoded)
-dummyYTrain = np_utils.to_categorical(encoded_YTrain)
+dummyYTrain = encoded_YTrain#np_utils.to_categorical(encoded_YTrain)
 
 
 encoder.fit(YTest)
 encoded_YTest = encoder.transform(YTest)
 
 # convert integers to dummy variables (i.e. one hot encoded)
-dummyYTest = np_utils.to_categorical(encoded_YTest)
+dummyYTest = encoded_YTest #np_utils.to_categorical(encoded_YTest)
 print dummyYTest
 # normalize the dataset
 
-print len(XTrain[0]), len(XTest[0])
-print len(dummyYTrain[0]), len(dummyYTest[0])
-print len(dummyYTrain), len(dummyYTest)
 
 def trainModel():
     # create the model
@@ -166,12 +160,40 @@ def loadAndEvaluate():
     # load weights into new model
     loaded_model.load_weights(model + '.h5')
     print("Loaded model from disk")
-    sgd = optimizers.SGD(lr=0.01)
+    # sgd = optimizers.SGD(lr=0.01)
     # evaluate loaded model on test data
-    loaded_model.compile(
-        loss='mean_squared_error', optimizer=sgd, metrics=['categorical_accuracy'])
-    score = loaded_model.evaluate(XTest, dummyYTest, verbose=1)
-    print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
+    #loaded_model.compile(
+    #   loss='mean_squared_error', optimizer=sgd, metrics=['categorical_accuracy'])
+    #score = loaded_model.evaluate(XTest, dummyYTest, verbose=1)
+    #print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
 
+    predictions = loaded_model.predict(XTest, batch_size=500)
+    val_preds = numpy.argmax(predictions, axis=-1)
+    print val_preds
+    print dummyYTest
+    val_trues = dummyYTest
+    cm = metrics.confusion_matrix(val_trues, val_preds)
+    print cm
+    tp, fp, fn, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
+    print tp
+    print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
+    print("%s: %.2f%%" % ('accuracy',
+                          (tp + tn) / (tp + tn + fp + fn + 0.0) * 100))
+    #print("precision:  %.2f%%" % score[2])
+    #print("recall:  %.2f%%" % score[2])
+    print 'precision ', (tp) / (tp + fp + 0.0) * 100
+    print metrics.accuracy_score(val_trues,val_trues)
+    print metrics.precision_score(val_trues,val_trues,labels=[0,1,2,3,4] ,average='micro')
+    print metrics.recall_score(val_trues,val_preds, average='micro')
 
+    print 'recall ', (tp) / (tp + fn + 0.0) * 100
+    print 'far ', fp / (fp + tn + 0.0) * 100
+    tp = [0]*5
+    fn = [0]*5
+    for i in range(5):
+        tp[i] = cm[i][i]
+        for j in range(5):
+            if i!=j:    
+                fn[i]+= cm[i][j]
+    print tp, tn
 loadAndEvaluate()

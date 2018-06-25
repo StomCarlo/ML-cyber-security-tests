@@ -160,7 +160,7 @@ def trainModel():
         Embedding(
             len(XTrain), 80, input_length=41))
     model.add(LSTM(80))
-    model.add(Dense(2, activation='softmax'))
+    model.add(Dense(1, activation='softmax'))
     sgd = optimizers.SGD(lr=0.01)
     model.compile(
         loss='mean_squared_error',
@@ -172,7 +172,6 @@ def trainModel():
         dummyYTrain,
         epochs=500,
         batch_size=500,
-        callbacks=[metrics],
     )  #Bs 50
     # Final evaluation of the model
     scores = model.evaluate(XTest, dummyYTest, verbose=1)
@@ -215,12 +214,16 @@ def loadAndEvaluate() :
     tp, fp, fn, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
     print tp
     print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
-    print("%s: %.2f%%" % ('accuracy',
-                          (tp + tn) / (tp + tn + fp + fn + 0.0) * 100))
+    print metrics.accuracy_score(val_trues,val_preds)*100
+
+   # print("%s: %.2f%%" % ('accuracy',
+                         # (tp + tn) / (tp + tn + fp + fn + 0.0) * 100))
     #print("precision:  %.2f%%" % score[2])
     #print("recall:  %.2f%%" % score[2])
     print 'precision ', (tp) / (tp + fp + 0.0) * 100
+    print metrics.precision_score(val_trues, val_preds)*100
     print 'recall ', (tp) / (tp + fn + 0.0) * 100
+    print metrics.recall_score(val_trues, val_preds)*100
     print 'far ', fp / (fp + tn + 0.0) * 100
 
 
