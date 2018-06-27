@@ -153,9 +153,9 @@ print clf.score(testX,testY)
 predictions = clf.predict(testX)
 print predictions
 val_trues = testY
-cm = metrics.confusion_matrix(val_trues, predictions)
+cm = metrics.confusion_matrix(val_trues, predictions, labels = ['anomaly', 'normal'])
 print cm
-tp, fp, fn, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
+tp, fn, fp, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
 print tp
 print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
 
