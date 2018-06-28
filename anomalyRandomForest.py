@@ -15,18 +15,18 @@ from sklearn.ensemble import RandomForestClassifier
 from statsmodels import robust
 
 columnsHead = [
-    'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
-    'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
-    'logged_in', 'num_compromised', 'root_shell', 'su_attempted', 'num_root',
-    'num_file_creations', 'num_shells', 'num_access_files',
-    'num_outbound_cmds', 'is_host_login', 'is_guest_login', 'count',
-    'srv_count', 'serror_rate', 'srv_serror_rate', 'rerror_rate',
-    'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate', 'srv_diff_host_rate',
-    'dst_host_count', 'dst_host_srv_count', 'dst_host_same_srv_rate',
-    'dst_host_diff_srv_rate', 'dst_host_same_src_port_rate',
-    'dst_host_srv_diff_host_rate', 'dst_host_serror_rate',
-    'dst_host_srv_serror_rate', 'dst_host_rerror_rate',
-    'dst_host_srv_rerror_rate', 'outcome'
+    'duration','protocol_type','service','flag','src_bytes','dst_bytes',
+    'land','wrong_fragment','urgent','hot','num_failed_logins',
+    'logged_in','num_compromised','root_shell','su_attempted','num_root',
+    'num_file_creations','num_shells','num_access_files',
+    'num_outbound_cmds','is_host_login','is_guest_login','count',
+    'srv_count','serror_rate','srv_serror_rate','rerror_rate',
+    'srv_rerror_rate','same_srv_rate','diff_srv_rate','srv_diff_host_rate',
+    'dst_host_count','dst_host_srv_count','dst_host_same_srv_rate',
+    'dst_host_diff_srv_rate','dst_host_same_src_port_rate',
+    'dst_host_srv_diff_host_rate','dst_host_serror_rate',
+    'dst_host_srv_serror_rate','dst_host_rerror_rate',
+    'dst_host_srv_rerror_rate','outcome'
 ]
 
 outlierThreshold = 0 #to fix
@@ -87,6 +87,7 @@ def loadDataset(path, isTrain, ignoreList=[]): #ingoreList must be ordered
     print '--------'
     print Ydt
     print dt.shape
+    #delete the column containint the services
     Xdt = np.delete(dt,1,1)
     Xdt = removeListValues(Xdt)
     print Xdt.shape
@@ -121,25 +122,25 @@ def proximityCalculator(forest, n, items, predicted, expected):
 
     return proxMatrix
 
-def outliernessCount(proximities, protocols, predicted, expected): #protocols is a list containing the labels given by the rf
-    n = len(proxMatrix[0])
+def outliernessCount(proximities, predicted, expected): #predicted is a list containing the labels given by the rf
+    n = len(proximities[0])
     outlierness = [0 for x in range(n)]
     for i in range(n):
         if predicted[i] == expected[i]:
-            k = protocols[i]; #k is the class the item i belongs to
+            k = predicted[i]; #k is the class the item i belongs to
             for j in range(n) :
-                if k == protocols[j]:
+                if k == predicted[j]:
                     outlierness[i] += pow(proximities[i][j],2)
             outlierness[i] = n/outlierness[i]
 
     d = {}
     for i in range(n):
         if predicted[i] == expected[i]:
-            if protocols[i] in d:
-                d[ protocols[i] ].append( outlierness[i] )
+            if predicted[i] in d:
+                d[ predicted[i] ].append( outlierness[i] )
             else:
-                d[ protocols[i] ] = [ outlierness[i] ]
-    print d
+                d[ predicted[i] ] = [ outlierness[i] ]
+    #print d
     print(outlierness[0:10])
 
     medians = {}
@@ -147,66 +148,148 @@ def outliernessCount(proximities, protocols, predicted, expected): #protocols is
     for k in d:
         medians[k] = np.median(d[k])
         medianDevs[k] = robust.mad(d[k])
-
+    print '-----------'
+    print d['icmp']
+    print medianDevs
+    print '------'
     for i in range(n):
         if predicted[i] == expected[i]:
-            outlierness[i] = (outlierness[i] - medians[ protocols[i] ]) / medianDevs[ protocols[i] ]
+            outlierness[i] = (outlierness[i] - medians[ predicted[i] ]) / medianDevs[ predicted[i] ]
 
     print(outlierness[0:10])
     return outlierness
 
-# fix random seed for reproducibility
-seed = 7
-np.random.seed(seed)
-
-trainX, trainY, labels = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv',True)
-testX, testY, labels = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', False) #label are the label in terms of attack
-
-labels = m2Binary(labels)
-
-clf = RandomForestClassifier(n_estimators= nTrees, max_features=5, random_state=1)
-clf.fit(trainX, trainY)
-
-print clf.score(testX,testY) #classification in terms of protocol type
-predictions = clf.predict(testX)
-
-val_trues = testY #trues in terms of protocol types
-print len(predictions), len(val_trues), len(labels)
-
-labelPrediction = ['normal' for x in range(len(labels))]
-
-proxMatrix = proximityCalculator(clf, len(labels), testX, predictions, val_trues)
-#with open('./proxMatrix.json', 'wb') as outfile:
-#    json.dump(proxMatrix, outfile)
-
-#with open('./proxMatrix.json') as f:
-#    proxMatrix = json.load(f)
-
-print ('---------------')
-print proxMatrix[1][1]
-print proxMatrix[2][2]
-print len(proxMatrix), len(proxMatrix[0])
-
-
-outlierness = outliernessCount(proxMatrix, predictions, predictions, val_trues)
-
-for i in range(len(predictions)):
-    if predictions[i] != val_trues[i]:
-        labelPrediction[i] = 'anomaly'
-    else:
-        out = outlierness[i]
-        if out > outlierThreshold:
+def scoreByThreshold(th, outlierness, labels, labelPrediction, predictions,val_trues):
+    for i in range(len(labels)):
+        if predictions[i] != val_trues[i]:
             labelPrediction[i] = 'anomaly'
         else:
-            labelPrediction[i] = 'normal'
+            out = outlierness[i]
+            if out > th:
+                labelPrediction[i] = 'anomaly'
+            else:
+                labelPrediction[i] = 'normal'
 
-print (labelPrediction[0:50])
+# print (labelPrediction[0:50])
 
-cm = metrics.confusion_matrix(
-    labels, labelPrediction, labels=['anomaly', 'normal'])
-print cm
-tp, fp, fn, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
-print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
-print 'precision ', (tp) / (tp + fp + 0.0) * 100
-print 'recall ', (tp) / (tp + fn + 0.0) * 100
-print 'far ', fp / (fp + tn + 0.0) * 100
+    cm = metrics.confusion_matrix(
+        labels, labelPrediction, labels=['anomaly', 'normal'])
+    print cm
+    print '--------------', th, '----------------'
+    tp, fn, fp, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
+    acc= (tp+tn)/(tp+tn+fp+fn+0.0)*100
+    prec= (tp) / (tp + fp + 0.0) * 100
+    recall=(tp) / (tp + fn + 0.0) * 100
+    far =fp / (fp + tn + 0.0) * 100
+    print 'accuracy ',acc
+    print 'precision ',prec
+    print 'recall ', recall
+    print 'far ', far
+    return acc, far
+
+def thresholdFinder():
+    seed = 7
+    np.random.seed(seed)
+
+    trainX, trainY, labels = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv',True)
+    testX, testY, labels = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', False) #label are the label in terms of attack
+
+    labels = m2Binary(labels)
+
+    clf = RandomForestClassifier(n_estimators= nTrees, max_features=5, random_state=1)
+    clf.fit(trainX, trainY)
+
+    print clf.score(testX,testY) #classification in terms of protocol type
+    predictions = clf.predict(testX)
+
+    val_trues = testY #trues in terms of protocol types
+    print len(predictions), len(val_trues), len(labels)
+
+    labelPrediction = ['normal' for x in range(len(labels))]
+
+    proxMatrix = proximityCalculator(clf, len(labels), testX, predictions, val_trues)
+    #with open('./proxMatrix.json', 'wb') as outfile:
+    #    json.dump(proxMatrix, outfile)
+
+    #with open('./proxMatrix.json') as f:
+    #    proxMatrix = json.load(f)
+
+    print ('---------------')
+    print proxMatrix[1][1]
+    print proxMatrix[2][2]
+    print len(proxMatrix), len(proxMatrix[0])
+
+
+    outlierness = outliernessCount(proxMatrix, predictions, val_trues)
+
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    print np.any(np.isnan(np.array(outlierness) ))
+    print np.all(np.isfinite(np.array(outlierness) ))
+    #scaled_out = np.array(outlierness).reshape(-1, 1)
+    #out = scaler.fit_transform( scaled_out )
+    accs = {}
+    fars = {}
+    print min(outlierness), max(outlierness)
+    for i in np.arange(min(outlierness),max(outlierness),0.5):
+        accs[i], fars[i] = scoreByThreshold( i, outlierness,labels,labelPrediction, predictions, val_trues)
+
+    maxAcc = max(accs, key = accs.get)
+    maxFar = min(fars, key = fars.get)
+    print maxAcc , ' ' , accs[maxAcc]
+    print maxFar , ' ' , fars[maxFar]
+
+
+def predictByThreshold(th, outlierness, labels, labelPrediction, predictions, val_trues):
+    for i in range(len(labels)):
+        if predictions[i] != val_trues[i]:
+            labelPrediction[i] = 'anomaly'
+        else:
+            out = outlierness[i]
+            if out > th:
+                labelPrediction[i] = 'anomaly'
+            else:
+                labelPrediction[i] = 'normal'
+    
+    return labelPrediction
+
+
+def train():
+    # fix random seed for reproducibility
+    seed = 7
+    np.random.seed(seed)
+
+    trainX, trainY, labels = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv',True)
+
+    clf = RandomForestClassifier(n_estimators= nTrees, max_features=5, random_state=1)
+    clf.fit(trainX, trainY)
+    return clf
+
+def test(testX=[], testY=[], labels=[]):
+    if len(testX) == 0:
+        testX, testY, labels = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', False) #label are the label in terms of attack
+
+    clf = train()
+    labels = m2Binary(labels)
+    print clf.score(testX,testY) #classification in terms of protocol type
+    predictions = clf.predict(testX)
+
+    val_trues = testY #trues in terms of protocol types
+    print len(predictions), len(val_trues), len(labels)
+
+    labelPrediction = ['normal' for x in range(len(labels))]
+
+    proxMatrix = proximityCalculator(clf, len(labels), testX, predictions, val_trues)
+    #with open('./proxMatrix.json', 'wb') as outfile:
+    #    json.dump(proxMatrix, outfile)
+
+    #with open('./proxMatrix.json') as f:
+    #    proxMatrix = json.load(f)
+
+    print ('---------------')
+    print proxMatrix[1][1]
+    print proxMatrix[2][2]
+    print len(proxMatrix), len(proxMatrix[0])
+
+
+    outlierness = outliernessCount(proxMatrix, predictions, val_trues)
