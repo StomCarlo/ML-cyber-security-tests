@@ -27,15 +27,12 @@ columnsHead = [
     'dst_host_srv_rerror_rate', 'outcome'
 ]
 
-def text2hash(df,cols):
+def text2hash(df,cols,toHash = ['service', 'flag','protocol_type']):
     df.columns = cols
-    df['protocol_type'] = df['protocol_type'].apply(
-        lambda x: hashing_trick(x, 200, hash_function='md5', filters='!"#$%&()*+,-./:;<=>?@[\]^`{|}~ '))
-    df['service'] = df['service'].apply(
-        lambda x: hashing_trick(x, 200, hash_function='md5', filters='!"#$%&()*+,-./:;<=>?@[\]^`{|}~ '))
-    df['flag'] = df['flag'].apply(
-        lambda x: hashing_trick(x, 200, hash_function='md5', filters='!"#$%&()*+,-./:;<=>?@[\]^`{|}~ '))
-
+    for el in toHash:
+        df[el] = df[el].apply(
+            lambda x: hashing_trick(x, 200, hash_function='md5', filters='!"#$%&()*+,-./:;<=>?@[\]^`{|}~ '))
+    
 def removeListValues(matrix):
     i = 0
     for row in matrix[:, :]:
@@ -50,48 +47,6 @@ def removeListValues(matrix):
 def m2Binary(classes):
     classes = [x if x == 'normal' else 'anomaly'  for x in classes]
     return classes
-
-
-def loadAndEvaluate() :
-    model = './model_binary_batch500'
-
-    # load json and create model
-    json_file = open( model+'.json', 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    loaded_model = model_from_json(loaded_model_json)
-    # load weights into new model
-    loaded_model.load_weights(model+'.h5')
-    print("Loaded model from disk")
-
-    #sgd = optimizers.SGD(lr=0.01)
-    # evaluate loaded model on test data
-    #loaded_model.compile(loss='mean_squared_error', optimizer=sgd, metrics=['accuracy', precision, recall])
-    #score = loaded_model.evaluate(XTest, dummyYTest, verbose=1)
-    #print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1]*100))
-    #print("precision:  %.2f%%" % score[2])
-    #print("recall:  %.2f%%" % score[2])
-
-    predictions = loaded_model.predict(testX, batch_size=500)
-    val_preds = numpy.argmax(predictions, axis=-1)
-    print val_preds
-    val_trues = testY
-    cm = metrics.confusion_matrix(val_trues, val_preds)
-    print cm
-    tp, fp, fn, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
-    print tp
-    print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
-    print metrics.accuracy_score(val_trues,val_preds)*100
-
-    # print("%s: %.2f%%" % ('accuracy',
-    # (tp + tn) / (tp + tn + fp + fn + 0.0) * 100))
-    #print("precision:  %.2f%%" % score[2])
-    #print("recall:  %.2f%%" % score[2])
-    print 'precision ', (tp) / (tp + fp + 0.0) * 100
-    print metrics.precision_score(val_trues, val_preds)*100
-    print 'recall ', (tp) / (tp + fn + 0.0) * 100
-    print metrics.recall_score(val_trues, val_preds)*100
-    print 'far ', fp / (fp + tn + 0.0) * 100
 
 
 def loadDataset(path, ignoreList=[]): #ingoreList must be ordered
@@ -109,7 +64,7 @@ def loadDataset(path, ignoreList=[]): #ingoreList must be ordered
         engine='python',
         skipfooter=0)
 
-    text2hash(dt,cols)
+    text2hash(dt,cols, ['service','flag'])
 
     dt = dt.values
 
@@ -137,32 +92,35 @@ def loadDataset(path, ignoreList=[]): #ingoreList must be ordered
     print dummyYdt.shape
     return Xdt, Ydt
 
-# fix random seed for reproducibility
-seed = 7
-numpy.random.seed(seed)
+def misuse (n_trees, mtry, ignoredFeatures):
+    # fix random seed for reproducibility
+    seed = 7
+    numpy.random.seed(seed)
 
-trainX, trainY = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv', [6,19,20])
-testX, testY = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', [6,19,20])
+    trainX, trainY = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv', ignoredFeatures)
+    testX, testY = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', ignoredFeatures)
 
-print trainX[0]
-clf = RandomForestClassifier(n_estimators= 100, max_features=15, random_state=1)
-clf.fit(trainX, trainY)
+    print trainX[0]
+    clf = RandomForestClassifier(n_estimators= n_trees, max_features=mtry, random_state=1)
+    clf.fit(trainX, trainY)
 
-print clf.score(testX,testY)
+    print clf.score(testX,testY)
 
-predictions = clf.predict(testX)
-print predictions
-val_trues = testY
-cm = metrics.confusion_matrix(val_trues, predictions, labels = ['anomaly', 'normal'])
-print cm
-tp, fn, fp, tn =cm[0][0], cm[0][1], cm[1][0], cm[1][1]
-print tp
-print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
+    predictions = clf.predict(testX)
+    print predictions
+    val_trues = testY
+    cm = metrics.confusion_matrix(val_trues, predictions, labels = ['anomaly', 'normal'])
+    print cm
+    tp, fn, fp, tn =cm.ravel()
+    print tp, fp, fn , tn
+    print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
 
-# print("%s: %.2f%%" % ('accuracy',
-# (tp + tn) / (tp + tn + fp + fn + 0.0) * 100))
-#print("precision:  %.2f%%" % score[2])
-#print("recall:  %.2f%%" % score[2])
-print 'precision ', (tp) / (tp + fp + 0.0) * 100
-print 'recall ', (tp) / (tp + fn + 0.0) * 100
-print 'far ', fp / (fp + tn + 0.0) * 100
+    # print("%s: %.2f%%" % ('accuracy',
+    # (tp + tn) / (tp + tn + fp + fn + 0.0) * 100))
+    #print("precision:  %.2f%%" % score[2])
+    #print("recall:  %.2f%%" % score[2])
+    print 'precision ', (tp) / (tp + fp + 0.0) * 100
+    print 'recall ', (tp) / (tp + fn + 0.0) * 100
+    print 'far ', fp / (fp + tn + 0.0) * 100
+    return predictions
+
