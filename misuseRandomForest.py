@@ -49,7 +49,7 @@ def m2Binary(classes):
     return classes
 
 
-def loadDataset(path, ignoreList=[]): #ingoreList must be ordered
+def loadDataset(path, ignoreList=[]): 
     #remove undesired features
     colNumbers = range(0, 42)
     cols = columnsHead[:]
@@ -64,7 +64,7 @@ def loadDataset(path, ignoreList=[]): #ingoreList must be ordered
         engine='python',
         skipfooter=0)
 
-    text2hash(dt,cols, ['service','flag'])
+    text2hash(dt,cols)
 
     dt = dt.values
 

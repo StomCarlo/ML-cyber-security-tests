@@ -240,8 +240,8 @@ def thresholdFinder():
     print maxFar , ' ' , fars[maxFar]
 
 
-def predictByThreshold(th, outlierness, labels, labelPrediction, predictions, val_trues):
-    for i in range(len(labels)):
+def predictByThreshold(th, outlierness, labelPrediction, predictions, val_trues):
+    for i in range(len(outlierness)):
         if predictions[i] != val_trues[i]:
             labelPrediction[i] = 'anomaly'
         else:
@@ -250,36 +250,34 @@ def predictByThreshold(th, outlierness, labels, labelPrediction, predictions, va
                 labelPrediction[i] = 'anomaly'
             else:
                 labelPrediction[i] = 'normal'
-    
+
     return labelPrediction
 
 
-def train():
+def train(n_trees = nTrees, mtry=5):
     # fix random seed for reproducibility
     seed = 7
     np.random.seed(seed)
 
     trainX, trainY, labels = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv',True)
 
-    clf = RandomForestClassifier(n_estimators= nTrees, max_features=5, random_state=1)
+    clf = RandomForestClassifier(n_estimators= n_trees, max_features=mtry, random_state=1)
     clf.fit(trainX, trainY)
     return clf
 
-def test(testX=[], testY=[], labels=[]):
+def test(clf, testX=[], testY=[]):
     if len(testX) == 0:
         testX, testY, labels = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', False) #label are the label in terms of attack
 
-    clf = train()
-    labels = m2Binary(labels)
     print clf.score(testX,testY) #classification in terms of protocol type
-    predictions = clf.predict(testX)
+    predictions = clf.predict(testX) #in terms of protocol type
 
     val_trues = testY #trues in terms of protocol types
-    print len(predictions), len(val_trues), len(labels)
 
-    labelPrediction = ['normal' for x in range(len(labels))]
 
-    proxMatrix = proximityCalculator(clf, len(labels), testX, predictions, val_trues)
+    labelPrediction = ['normal' for x in range(len(predictions))]
+
+    proxMatrix = proximityCalculator(clf, len(predictions), testX, predictions, val_trues)
     #with open('./proxMatrix.json', 'wb') as outfile:
     #    json.dump(proxMatrix, outfile)
 
@@ -293,3 +291,11 @@ def test(testX=[], testY=[], labels=[]):
 
 
     outlierness = outliernessCount(proxMatrix, predictions, val_trues)
+
+    sortedOut=outlierness[:]
+    sortedOut.sort()
+    t = len(sortedOut)/800
+
+    anomalyLabels = predictByThreshold(sortedOut[ len(sortedOut) - (t + 1) ], outlierness,
+                                       labelPrediction, predictions, val_trues)
+    return anomalyLabels
