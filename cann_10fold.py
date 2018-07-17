@@ -48,7 +48,7 @@ def removeListValues(matrix):
     return matrix
 
 def m2Binary(classes):
-    classes = [x if x == 'normal' else 'anomaly'  for x in classes]
+    classes = [0 if x == 'normal' else 1  for x in classes] #1 means anomaly
     return classes
 
 
@@ -130,45 +130,59 @@ ignoreFor6 = [
 
 ignoreFor19 = [0,2,4,6,7,8,9,10,12,13,14,15,16,17,18,19,20,21,23,29,39,40]
 
-xtr, yTrain = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv', ignoreFor19) #todo with the removed features
-xTrain = newFeatureCalculator(xtr, 2)
-print len(xTrain), len(yTrain)
+xTrain, yTrain = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv', ignoreFor19) #todo with the removed features
 
-xte, yTest = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', ignoreFor19)
-xTest = newFeatureCalculator(xte,2)
+#xTrain = newFeatureCalculator(xtr, 2)
+print len(xTrain), len(yTrain)
+print yTrain[0:20]
+
 
 scores=[0]*25
 #k between one and 25
-for i in range(25):
+"""for i in range(25):
     k=i+1
     neigh = KNeighborsClassifier(n_neighbors=k)
     neigh.fit(numpy.array(xTrain).reshape(-1,1), yTrain)
     score = neigh.score(numpy.array(xTest).reshape(-1,1),yTest)
     scores[i] = score
+"""
 
-print 'scores ', scores
-k = scores.index(max(scores)) + 1
-print('the best k is :', k)
+print xTrain.shape
 
-xTrain = numpy.array(xTrain).reshape(-1, 1)
-xTest = numpy.array(xTest).reshape(-1, 1)
+accuracy =[]
+precision=[]
+recall=[]
+far=[]
+
+yTrain = numpy.array(yTrain)
 
 kf = KFold(n_splits=10)
+neigh = KNeighborsClassifier(n_neighbors=1)
+for train_index, test_index in kf.split(xTrain):
+    X_train, X_test = xTrain[train_index], xTrain[test_index]
+    y_train, y_test = yTrain[train_index], yTrain[test_index]
 
-neigh = KNeighborsClassifier(n_neighbors=k)
-neigh.fit(xTrain, yTrain)
+    X_train = newFeatureCalculator(X_train,2)
+    X_test = newFeatureCalculator(X_test,2)
+    neigh.fit(numpy.array(X_train).reshape(-1, 1), y_train)
+    s = neigh.score(numpy.array(X_test).reshape(-1,1),y_test)
+    print 'score:' ,s
 
-predictions = neigh.predict(xTest)
-val_trues = yTest
-cm = metrics.confusion_matrix(val_trues, predictions, labels = ['anomaly', 'normal'])
-print cm
-tp, fn, fp, tn =cm.ravel()
-print tp, fp, fn , tn
-print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
-print 'precision ', (tp) / (tp + fp + 0.0) * 100
-print 'recall ', (tp) / (tp + fn + 0.0) * 100
-print 'far ', fp / (fp + tn + 0.0) * 100
+    predictions = neigh.predict(numpy.array(X_test).reshape(-1, 1))
+    val_trues = y_test
+    cm = metrics.confusion_matrix(val_trues, predictions, labels = [1, 0])
+    print cm
+    tp, fn, fp, tn =cm.ravel()
+    print tp, fp, fn , tn
+    accuracy.append( (tp+tn)/(tp+tn+fp+fn+0.0)*100)
+    precision.append(  (tp) / (tp + fp + 0.0) * 100)
+    recall.append(  (tp) / (tp + fn + 0.0) * 100)
+    far.append(  fp / (fp + tn + 0.0) * 100)
 
+print "avg acc:",  reduce(lambda x, y: x + y, accuracy) / len(accuracy)
+print "avg precision:",  reduce(lambda x, y: x + y, precision) / len(precision)
+print "avg recall:",  reduce(lambda x, y: x + y, recall) / len(recall)
+print "avg far:",  reduce(lambda x, y: x + y, far) / len(far)
 #todo usare 10fold
 #todo settare le varie feature (gruppo da 6 e da 19)
 # todo valutare se puoi usare direttamente cklearn per calculare nn senza fartelo a mamno
