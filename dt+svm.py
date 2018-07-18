@@ -8,11 +8,10 @@ from sklearn import metrics
 from keras.preprocessing.text import hashing_trick
 from sklearn.preprocessing import LabelEncoder
 from keras.utils import np_utils
-from keras.layers.embeddings import Embedding
 from keras.models import model_from_json
 from sklearn import tree
+from sklearn import svm
 import json
-from c45 import C45
 
 columnsHead = [
     'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
@@ -29,18 +28,21 @@ columnsHead = [
     'dst_host_srv_rerror_rate', 'outcome'
 ]
 
-def text2hash(df,cols,toHash = ['service', 'flag','protocol_type']):
+
+def text2hash(df, cols, toHash=['service', 'flag', 'protocol_type']):
     df.columns = cols
     for el in toHash:
         df[el] = df[el].apply(
             lambda x: hashing_trick(x, 200, hash_function='md5', filters='!"#$%&()*+,-./:;<=>?@[\]^`{|}~ '))
 
+
 def toJson(df):
-    j={}
+    j = {}
     df.columns = columnsHead
     for col in columnsHead:
         j[col] = df[col]
     return j
+
 
 def removeListValues(matrix):
     i = 0
@@ -53,8 +55,9 @@ def removeListValues(matrix):
         i += 1
     return matrix
 
+
 def m2Binary(classes):
-    classes = [x if x == 'normal' else 'anomaly'  for x in classes]
+    classes = [x if x == 'normal' else 'anomaly' for x in classes]
     return classes
 
 
@@ -63,13 +66,12 @@ def loadDataset(path):
     colNumbers = range(0, 42)
     # load the dataset
     dt = pandas.read_csv(
-        path,#'../NSL-KDD-Dataset-master/KDDdt+.csv'
-        usecols = colNumbers,
+        path,  #'../NSL-KDD-Dataset-master/KDDdt+.csv'
+        usecols=colNumbers,
         engine='python',
         skipfooter=0)
 
-    text2hash(dt,columnsHead)
-    j = toJson(dt)
+    text2hash(dt, columnsHead)
 
     dt = dt.values
 
@@ -95,9 +97,10 @@ def loadDataset(path):
     dummyYdt = encoded_Ydt  #np_utils.to_categorical(encoded_Ydt)
 
     print dummyYdt.shape
-    return Xdt, Ydt, j
+    return Xdt, Ydt
 
-def dt ():
+
+def hybrid(v, g):
     # fix random seed for reproducibility
     seed = 7
     numpy.random.seed(seed)
@@ -105,33 +108,75 @@ def dt ():
     trainX, trainY = loadDataset('./NSL-KDD-Dataset/KDDTrain+.csv')
     testX, testY = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv')
 
-    c1 = C45("../data/iris/iris.data", "../data/iris/iris.names")
-    c1.fetchData()
-    c1.preprocessData()
-    c1.generateTree()
-    c1.printTree()
-    print tree
+    d = {}
+    split = {}
 
-    clf = tree.DecisionTreeClassifier()
+    clf = tree.DecisionTreeClassifier(min_samples_leaf=0.1)
     clf.fit(trainX, trainY)
     tree.export_graphviz(clf, out_file='tree.dot')
+    paths = clf.decision_path(trainX)
+    predictions = clf.predict(trainX)
+    leaves = clf.apply(trainX)
 
-    print clf.score(testX,testY)
+    for i in range(len(predictions)):
+        if predictions[i] == 'normal':
+            l = leaves[i]
+            if not (l in d):
+                d[l] = {}
+                #d[l]['classes'] = set([predictions[i]])
+                if trainY[i] == 'normal':
+                    split[l] = {}
+                    split[l]['data'] = []
+                    split[l]['data'].append(trainX[i])
+                    split[l]['classifier'] = svm.OneClassSVM(
+                        nu=v, kernel="rbf", gamma=g)
+            else:
+                #d[l]['leaves'].add(leaves[i])
+                #d[l]['classes'].add(predictions[i])
+                if trainY[i] == 'normal':
+                    if not (l in split):
+                        split[l] = {}
+                        split[l]['data'] = []
+                        split[l]['classifier'] = svm.OneClassSVM(
+                            nu=v, kernel="rbf", gamma=g)
+                    split[l]['data'].append(trainX[i])
+        """
+        path = paths[i] #returns the decision path, the last element is the leaf
+        print "node: " + str(numpy.where(path.toarray() == 1)[1][-2]) +" leaf: " + str(clf.apply(testX[i].reshape(1,-1))) + " class: " + predictions[i]
+    
+    for k in d:
+        if len(d[k]['leaves']) > 1 or len(d[k]['classes']) > 1:
+            print '...........',k, d[k], '............'
+    """
 
+    for k in split:
+        print k, len(split[k]['data'])
+        split[k]['classifier'].fit(split[k]['data'])
+
+    print clf.score(testX, testY)
+"""
+a questo punto il training è fatto, devi fare il testing dove dai in input all'albero, se l'albero dice attacco è attacco,
+altrimenti guardi l'svm relativo alla foglia in cui è finito l'elemento, se questo dice 1 è normale, altrimenti è attacco
+costruisci così la lista di previsioni e vedi il risultato
+"""
+
+"""
+    #pred = ['anomaly' for el in predictions]
     predictions = clf.predict(testX)
-    pred = ['anomaly' for el in predictions]
     print predictions
     val_trues = testY
-    cm = metrics.confusion_matrix(val_trues, pred, labels = ['anomaly', 'normal'])
+    cm = metrics.confusion_matrix(
+        val_trues, predictions, labels=['anomaly', 'normal'])
     print cm
-    tp, fn, fp, tn =cm.ravel()
+    tp, fn, fp, tn = cm.ravel()
 
-    print tp, fp, fn , tn
-    print 'accuracy ', (tp+tn)/(tp+tn+fp+fn+0.0)*100
+    print tp, fp, fn, tn
+    print 'accuracy ', (tp + tn) / (tp + tn + fp + fn + 0.0) * 100
     print 'precision ', (tp) / (tp + fp + 0.0) * 100
     print 'recall ', (tp) / (tp + fn + 0.0) * 100
     print 'far ', fp / (fp + tn + 0.0) * 100
 
     return predictions
+"""
 
-dt()
+hybrid(0.01, 0.01)
