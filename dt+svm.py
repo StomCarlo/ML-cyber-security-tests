@@ -153,20 +153,26 @@ def hybrid(v, g):
         print k, len(split[k]['data'])
         split[k]['classifier'].fit(split[k]['data'])
 
-    print clf.score(testX, testY)
-"""
-a questo punto il training è fatto, devi fare il testing dove dai in input all'albero, se l'albero dice attacco è attacco,
-altrimenti guardi l'svm relativo alla foglia in cui è finito l'elemento, se questo dice 1 è normale, altrimenti è attacco
-costruisci così la lista di previsioni e vedi il risultato
-"""
+#    print clf.score(testX, testY)
 
-"""
+    testPred = clf.predict(testX)
+    check = testPred[:]
+    testLeaves = clf.apply(testX)
+    for i in range(len(testPred)):
+        if testPred[i] == 'normal':
+            l = split[testLeaves[i]]['classifier'].predict(testX[i].reshape(1, -1))
+            if l == -1:
+                testPred[i] = 'anomaly'
+
+
+    print check == testPred
+
     #pred = ['anomaly' for el in predictions]
-    predictions = clf.predict(testX)
-    print predictions
+    #predictions = clf.predict(testX)
+    print testPred
     val_trues = testY
     cm = metrics.confusion_matrix(
-        val_trues, predictions, labels=['anomaly', 'normal'])
+        val_trues, testPred, labels=['anomaly', 'normal'])
     print cm
     tp, fn, fp, tn = cm.ravel()
 
@@ -176,7 +182,7 @@ costruisci così la lista di previsioni e vedi il risultato
     print 'recall ', (tp) / (tp + fn + 0.0) * 100
     print 'far ', fp / (fp + tn + 0.0) * 100
 
-    return predictions
-"""
+    return testPred
 
-hybrid(0.01, 0.01)
+
+hybrid(0.5, 0.01)
