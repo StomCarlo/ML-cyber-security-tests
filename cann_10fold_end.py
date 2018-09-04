@@ -165,17 +165,29 @@ far=[]
 
 yTrain = numpy.array(yTrain)
 
+xTrain = newFeatureCalculator(xTrain,2)
+xTrain = numpy.array(xTrain)
+
+xte, yTest = loadDataset('./NSL-KDD-Dataset/KDDTest+.csv', ignoreFor19)
+print yTest[0:10]
+xTest = newFeatureCalculator(xte, 2)
+
 kf = KFold(n_splits=10)
+best = 0
+bestModel = KNeighborsClassifier(n_neighbors=2)
 for train_index, test_index in kf.split(xTrain):
-    neigh = KNeighborsClassifier(n_neighbors=1)
+    neigh = KNeighborsClassifier(n_neighbors=2)
     X_train, X_test = xTrain[train_index], xTrain[test_index]
     y_train, y_test = yTrain[train_index], yTrain[test_index]
-
-    X_train = newFeatureCalculator(X_train,2)
-    X_test = newFeatureCalculator(X_test,2)
     neigh.fit(numpy.array(X_train).reshape(-1, 1), y_train)
     s = neigh.score(numpy.array(X_test).reshape(-1,1),y_test)
     print 'score:' ,s
+
+    if s > best:
+        best = s
+        bestModel = KNeighborsClassifier(n_neighbors=2)
+        bestModel.fit(numpy.array(X_train).reshape(-1, 1), y_train)
+
 
     predictions = neigh.predict(numpy.array(X_test).reshape(-1, 1))
     val_trues = y_test
@@ -195,3 +207,18 @@ print "avg far:",  reduce(lambda x, y: x + y, far) / len(far)
 #todo usare 10fold
 #todo settare le varie feature (gruppo da 6 e da 19)
 # todo valutare se puoi usare direttamente cklearn per calculare nn senza fartelo a mamno
+
+#testing the best on the test data
+
+xTest = numpy.array(xTest).reshape(-1, 1)
+predictions = bestModel.predict(xTest)
+val_trues = yTest
+cm = metrics.confusion_matrix(
+    val_trues, predictions, labels=[1, 0])
+print cm
+tp, fn, fp, tn = cm.ravel()
+print tp, fp, fn, tn
+print 'accuracy ', (tp + tn) / (tp + tn + fp + fn + 0.0) * 100
+print 'precision ', (tp) / (tp + fp + 0.0) * 100
+print 'recall ', (tp) / (tp + fn + 0.0) * 100
+print 'far ', fp / (fp + tn + 0.0) * 100

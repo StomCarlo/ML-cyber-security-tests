@@ -124,3 +124,4 @@ def misuse (n_trees, mtry, ignoredFeatures):
     print 'far ', fp / (fp + tn + 0.0) * 100
     return predictions
 
+misuse(100,15, [6,19,20])

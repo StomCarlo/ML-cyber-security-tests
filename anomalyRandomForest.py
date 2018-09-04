@@ -294,7 +294,7 @@ def test(clf, testX=[], testY=[]):
 
     sortedOut=outlierness[:]
     sortedOut.sort()
-    t = len(sortedOut)/800
+    t = len(sortedOut)/8 #this changes the threshold
 
     anomalyLabels = predictByThreshold(sortedOut[ len(sortedOut) - (t + 1) ], outlierness,
                                        labelPrediction, predictions, val_trues)

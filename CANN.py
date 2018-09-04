@@ -95,32 +95,42 @@ def loadDataset(path, ignoreList=[]):
     print dummyYdt.shape
     return Xdt, Ydt
 
-def newFeatureCalculator(dataset, n): # dataset = the unlabeled dataset, the number of classes-clusters to create
+
+def newFeatureCalculator(dataset, n):  # dataset = the unlabeled dataset, the number of classes-clusters to create
 
     kmeans = KMeans(n_clusters=n, random_state=0).fit(dataset)
     print kmeans.cluster_centers_
-    print kmeans.transform(dataset)[0:10] # In the new space, each dimension is the distance to the cluster centers. Note that even if X is sparse, the array returned by transform will typically be dense.
+    #print kmeans.transform(dataset)[0:10] # In the new space, each dimension is the distance to the cluster centers. Note that even if X is sparse, the array returned by transform will typically be dense.
     #in transform i have the distance to each cluster center
+
+    clusterIndex = kmeans.predict(dataset)
+    clusterData = [[], []]
+    for i in range(len(dataset)):
+        clusterData[clusterIndex[i]].append(dataset[i])
 
     print len(kmeans.transform(dataset)[0])
     transform = kmeans.transform(dataset)
     print "distanze dal centro con transform e calcolate manualmente"
-    print kmeans.transform(dataset[0].reshape(1,-1))
+    print kmeans.transform(dataset[0].reshape(1, -1))
     #print (dataset[0])
     print(numpy.linalg.norm(kmeans.cluster_centers_[1] - dataset[0]))
-    nbrs = NearestNeighbors(n_neighbors=2).fit(dataset)
+    nbrs0 = NearestNeighbors(n_neighbors=2).fit(clusterData[0])
+    nbrs1 = NearestNeighbors(n_neighbors=2).fit(clusterData[1])
     # print distances[0:10][0:10]
-    distances, indices = nbrs.kneighbors(dataset)
-    print("distances")
-    print(distances[0:10]);
-    print "shape del dataset e di distances"
-    print dataset.shape, distances.shape
+    #distances, indices = nbrs.kneighbors(dataset)
+
     newFeature = [0] * len(dataset)
     for i in range(len(dataset)):
         for c in range(n):
             newFeature[i] += transform[i][c]
-        newFeature[i] += distances[i][1]
-# print newFeature[0:10]
+        #newFeature[i] += distances[i][1]
+        # print newFeature[0:10]
+        if clusterIndex[i] == 0:
+            dist, ind = nbrs0.kneighbors(dataset[i].reshape(1, -1))
+        else:
+            dist, ind = nbrs1.kneighbors(dataset[i].reshape(1, -1))
+        #print "dist", dist;
+        newFeature[i] += dist[0][1]
     return newFeature
 
 ignoreFor6 = [
@@ -153,7 +163,6 @@ print('the best k is :', k)
 xTrain = numpy.array(xTrain).reshape(-1, 1)
 xTest = numpy.array(xTest).reshape(-1, 1)
 
-kf = KFold(n_splits=10)
 
 neigh = KNeighborsClassifier(n_neighbors=k)
 neigh.fit(xTrain, yTrain)
