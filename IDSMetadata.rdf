@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+	xmlns:foaf="http://xmlns.com/foaf/0.1/"
+	xmlns="http://usefulinc.com/ns/doap#">
+
+
+<Project>
+	<name>HAPS - Holistic Attack Prevention System</name>
+	<homepage rdf:resource="http://stlab.istc.cnr.it/stlab/project/haps/" />
+	<created>2018-06-12</created>
+	<shortdesc xml:lang="en">
+		The file contains the metadata about the software developed for Intrusion Detection.
+		This metadata is published using DOAP Vocabulary (https://lov.linkeddata.es/dataset/lov/vocabs/doap)
+		according to the FAIR principles (https://www.go-fair.org/fair-principles/). The repository of software
+		contains an implementation of the state-of-the-art algorithms for intrusion detection using different
+		Machine Learning Methods.
+	</shortdesc>
+
+	<description xml:lang="en">
+		HAPS - Holistic Attack Prevention System is the project which aims at developing a software solution for
+		automatic “cyber defense” of critical applications. The system will be able to predict information on
+		possible vulnerabilities thanks to a learning component that will leverage (1) the source code of
+		the target application (SAST metrics) and (2) the information generated during its use ( application
+		log, network status, system status). The proposed approach, which pushes the state of the art of industrial
+		solutions, aims to drastically improve the effectiveness of the SAST analysis by integrating it with information
+		that is specific to the system under examination and therefore takes into account possible mitigation elements, already in place.
+	</description>
+
+	<release>
+		<Version>
+			<name>stable</name>
+			<created>2018-06-12</created>
+			<revision>0.1</revision>
+		</Version>
+	</release>
+
+
+	<download-page rdf:resource="https://github.com/StomCarlo/ML-cyber-security-tests" />
+
+
+	<maintainer>
+		<foaf:Person>
+			<foaf:name>Carlo Stomeo</foaf:name>
+			<foaf:mbox>carlo.stomeo@istc.cnr.it</foaf:mbox>
+			<foaf:homepage>http://stlab.istc.cnr.it/stlab/staff/carlo-stomeo/</foaf:homepage>
+		</foaf:Person>
+		<foaf:Person>
+			<foaf:name>Mehwish Alam</foaf:name>
+			<foaf:mbox>mehwish.alam@istc.cnr.it</foaf:mbox>
+			<foaf:homepage>https://www.istc.cnr.it/people/mehwish-alam</foaf:homepage>
+		</foaf:Person>
+		<foaf:Person>
+			<foaf:name>Alessandro Russo</foaf:name>
+			<foaf:mbox>alessandro.russo@istc.cnr.it</foaf:mbox>
+			<foaf:homepage>http://stlab.istc.cnr.it/stlab/staff/alessandro-russo/</foaf:homepage>
+		</foaf:Person>
+	</maintainer>
+
+
+	<!-- Licensing details -->
+	<license rdf:resource="https://opensource.org/licenses/GPL-3.0" />
+
+
+</Project>
+
+<!-- Administrative details (RDF creator) -->
+
+<rdf:Description rdf:about="">
+	<foaf:maker>
+		<foaf:Person>
+			<foaf:name>Mehwish Alam</foaf:name>
+			<foaf:mbox rdf:resource="mehwish.alam@istc.cnr.it" />
+		</foaf:Person>
+	</foaf:maker>
+</rdf:Description>
+
+
+</rdf:RDF>
